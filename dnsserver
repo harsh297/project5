@@ -1,0 +1,155 @@
+#!/usr/bin/python
+import sys
+import json
+import socket
+import struct
+import urllib
+import math
+import time
+
+
+#Function Created to get our own IP
+def get_local_ip():                                     
+        local_ip = ''
+        try:
+                own = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)                              #Creates Sockets and sends the requests
+                own.connect(('google.com', 80))                                                         
+                local_ip = own.getsockname()[0]
+                print local_ip
+                own.close()                                                                         #Close the Socket Connection
+        except:
+                pass
+        return local_ip
+
+
+
+#Statements which check the Number of Agruments passed Basically it is Validation
+
+if len(sys.argv) != 5:                                                                              #Checks for total Number of Agruments
+	print "Input of Wrong number of arguments"
+elif sys.argv[1] != '-p':
+	print "-p switch is missing"                                                                #Checks for the -p Switch
+        sys.exit()
+elif sys.argv[3] != '-n':                                                                           #Checks for -n Switch
+        print "-n switch is missing"
+        sys.exit()
+elif sys.argv[4] != "cs5700cdn.example.com":                                                        #Checks for the Server Name
+       	print "Please provide a correct domain name"
+        sys.exit()
+
+elif sys.argv[2] <= 40000 and sys.argv[2] >= 65535:                                                 #Checks for the Port Number Range
+        print "Please Provide Correct Port Numbers"
+        sys.exit()
+else:
+	port_number = int(sys.argv[2])                                                              #Take Agrument 2 as command Line Input
+        #print " Please Enter the port Number between 40000 and 65535"
+	print port_number				                                
+	cdn_name = sys.argv[4]
+	print cdn_name	                                                                            #Take CDN name as Command Line Input
+			                                           
+
+#Start of the Main Program
+ip_addr = get_local_ip()                                                                            #Call the Main IP Function in Main Program
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)		                                    #Build Socket Connection for the server To Reply
+s.bind((ip_addr, port_number))
+while True:                                                                                         #Checks if Condition True
+	try:
+		recv_data = s.recvfrom(65535)                                                       #Receive data from the Server
+	except:                                                                                     #IF no Data Received then Exit the loop
+		print 'Data Not Received'
+		sys.exit()
+	while True:
+		retrive_data = recv_data[0].strip()                                                 #Retriveing the Received data
+                count1 = 1
+                count2 = 0	
+                temp_flags = '\x81\x80'		                                                    #Set the Values of the Tmeporary Flags
+		field = struct.unpack('!6H', retrive_data[:12])				 	    #The query headers are extracted
+		field2 = struct.pack('!4H', field[2], count1, field[4], count2)	                    #PAcking the query Headers 
+		field3 = retrive_data[0:2] + temp_flags + field2  				    #headers of query are packed
+	
+		rest_of_data = retrive_data[12:]		
+		length = struct.unpack('!B', rest_of_data[0])
+
+		ptr = 1
+		name = ""
+                last = 0
+        	while (length[0] != 0):                                                             #Execute continous While
+
+
+
+			last = ptr + length[0]	
+			unpack = str(length[0]) + 's'						    #Unpack data with respect to subdomain 
+		
+			if name:                                                                    #Condition to check the presence of data
+				name = name + '.' + struct.unpack(unpack, rest_of_data[ptr:last])[0] #Unpack Data
+			else:
+				name = struct.unpack(unpack, rest_of_data[ptr:last])[0]             #This performs Unpacking of the response
+	
+			ptr = last + 1		
+			length_unpack = rest_of_data[last]
+			length = struct.unpack('!B',length_unpack)	
+		last = last + 5
+		break
+#--------------------------------------The Replica Server Locations are Defined retaining from the EC2.txt files------------------------------------------------------------------
+	replica_server_location = { '54.210.1.206':[39.0335, -77.4838], '54.67.25.76':[37.3394, -121.8950], '35.161.203.105':[42.2734, -83.7133], '52.213.13.179':[53.3331, -6.2489], '52.196.161.198':[35.6850, 139.7514], '54.255.148.115':[1.2931, 103.8558], '13.54.30.86':[41.1271, -73.4416], '52.67.177.90':[-23.4733, -46.6658], '35.156.54.135':[42.2743, -83.7133] }
+
+
+#---------------------------------------The API used to Get the Geo Location of the IP given in terms of Longitude and Latitue---------------------------------------------------
+        response = urllib.urlopen('http://freegeoip.net/json').read()
+        j = json.loads(response)
+        lat = j['latitude']
+        longt = j['longitude']
+        #print lat
+       	#print longt
+	distance_array = []	
+	for key, value in replica_server_location.items():					    #Calulate the GEO-Location Depending on the Distance betwwen C and S
+		lat2 = float(value[0])                                                              #Define the variables with values
+		long2 = float(value[1])                                                             
+		#print lat2
+		#print long2
+		
+		p1 = (90.0 - lat)*(math.pi/180.0)                                                   #Calulation the Phi Value for the distance Measurement
+		#print p1
+		p2 = (90.0 - lat2)*(math.pi/180.0)
+                #print p2
+
+		t1 = longt*(math.pi/180.0)                                                          #Calculation of Theta value for the distance measurement
+		t2 = long2*(math.pi/180.0)
+         	#print t1 
+		#print t2
+	    										              
+		cos = (math.sin(p1)*math.sin(p2)*math.cos(t1 - t2) +  math.cos(p1)*math.cos(p2))    # Calculation of spherical distance
+		arc = math.acos( cos )
+ 		#print cos
+		#print cos
+												     	    
+		distance = arc * 6373
+		distance_array.append(distance)                                                     #Append all the values of the above calculated distances
+                #print distance_array
+	min_dist = min(distance_array)	                                                            #Find the Minimum distance from the above array
+        #print min_dist	
+	loc = distance_array.index(min_dist)
+	#print loc
+	minus = replica_server_location.keys()[loc]	
+	#print minus											#building dns answer packet									
+#---------------------------------------DNS Header BUilding Up---------------------------------------------------------------------------------------------------------------
+	name = 0xC00C
+	a_record_type = 0x0001
+	class_type = 0x0001
+	ttl = 60
+	len_extract_data = 4
+	replica_server = minus
+	dns_ans_packet = struct.pack('>HHHLH4s', name, a_record_type, class_type, ttl, len_extract_data, socket.inet_aton(replica_server))	#pack answer packet
+	unpack_dns = struct.unpack('>HHHLH4s', dns_ans_packet)
+	quest = retrive_data[12:12+last]
+	send_info = recv_data[1]
+	dns_packet = field3 + quest + dns_ans_packet
+
+
+	try:
+		s.sendto(dns_packet, send_info)							    #Send DNS Response
+	except:
+        	print 'Could not send DNS Response'
+        	sys.exit()
+	continue

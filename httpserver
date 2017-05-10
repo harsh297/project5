@@ -1,0 +1,131 @@
+#!/usr/bin/python
+
+
+
+import urllib
+import os
+import urlparse
+from urllib2 import Request 
+from BaseHTTPServer import HTTPServer,BaseHTTPRequestHandler
+import sys
+import BaseHTTPServer
+from threading import Thread
+
+#------------------------Program to check the Validations of the Input Argumetns Passed--------------------------------------------------------
+global origin
+if len(sys.argv) != 5:                                                                          
+        print "Input of Wrong number of arguments"
+        sys.exit(0)
+elif sys.argv[1] != "-p":
+        print " Enter Valid Port Number"
+        sys.exit(0)
+elif sys.argv[2] <= 40000 and sys.argv[2] >= 65535:
+        print " Please Enter the Correct  Port Numbers"
+        sys.exit(0)
+elif sys.argv[3] != "-o":
+        print "Enter Correct Original  Address"
+        sys.exit(0)
+else:
+        origin = str(sys.argv[4])                                       #Assigning the Origin server to the varible
+        port_number = int(sys.argv[2])                                  #Assigning the port Number to the Server
+        
+#----------------------------------Define a Class which ahndles the base HTTP Request---------------------------------------------------------------
+class RequestHandler(BaseHTTPRequestHandler):
+        def do_GET(so,*args):
+                entered_path = so.path                                  #Used to Extract the path of the Entered path
+		print (so.path)
+                global name_requested, cache, urls_d, Hit, request, loc, content_req            #Define Various Global Variables
+		
+#---------------------------------Cache Implementation-----------------------------------------------------------------------------------------
+                if so.path in cache:              
+
+                        filename= entered_path.split('/')                                       #Splitting the PAth of the File
+                        #print filename
+                        name_requested = filename[-1]
+                        #print extracted_name
+                        file =open("httpserver_cache/"+name_requested, "r")                #Check Files if present In Cache 
+                        so.send_response(200)                                              #If request file found in cache send back the page to the client
+                        so.send_header("Content-type" , "text/html")
+                        so.end_headers()
+                        so.wfile.write(content_req)
+                        lines.append(name_requested)
+                        #print lines
+                        urls_d ={}                                                         #This creates the directory of the file which keeps the track of the Directory
+                        for line in lines:
+                                if not line in urls_d:                                      #Condition to check the URL in the already given directory
+                                        urls_d[line] =1
+
+                                else:
+                                        urls_d[line]+=1                                     #IF not present put that url in the direcotry
+
+
+                        min_hit=min(urls_d, key= urls_d.get)                                #Logic to  check the Minium accesed file
+#---------------------------------Part Not present in cache and adding it in cache----------------------------------------------------------------------                       
+                else: 
+			cache.append(entered_path)                                          #Appending the path to the array where cache is present 
+			request = 'http://'+origin+':8080'+entered_path                     #Requesting to the Main Server
+                	content_req =  urllib.urlopen(request)       
+			content_req = content_req.read()                                
+			so.send_response(200)                                              
+                	so.send_header("Content-type" , "text/html")
+                	so.end_headers()
+			so.wfile.write(content_req)                                         #the output is redirected to the client
+			filename= entered_path.split('/')                                   #End part Extraction by splitting
+			name_requested = filename[-1]
+			if name_requested not in visited:                                  #checking whether the extracted name exists in visited array
+                        	visited.append(name_requested)                          
+#----------------------------------Writing the page Content in the Array--------------------------------------------------------------------------------                        
+			file =open("httpserver_cache/"+name_requested, "w")                
+                        file.write(content_req)                                      
+			s =(len(content_req))                                               #checking the contents of the requested page
+			size.append(s)                                                     
+			lines.append(name_requested)                                       
+        	  	for line in lines:                                              
+        	      		if not line in urls_d:                                  
+                        		urls_d[line] =1
+                                	
+                        	elif line == name_requested:
+                               		urls_d[line]+=1                                 
+                               		
+                    
+			min_hit=min(urls_d, key= urls_d.get)                               #minimum hits to get the key from the URl
+
+			loc =cache.index("/wiki/"+str(min_hit))                         
+    
+			if (sum(size)> 9000000):                                           #Condition to check the  size  10Mb limit of the Cache
+				cache.pop(loc)              
+				size.pop(loc)                                              
+				os.remove("httpserver_cache/"+ min_hit)                    #contents from the file which is in the directory are removed
+				urls_d.pop(min_hit)                                        #The Directory is updated here
+				lines.remove(min_hit)		                    
+#--------------------------------MultiThreading is Implemented to handle Multiple Requests at the same Time--------------------------------------------------
+ 
+	def check(so):                                                                     
+		global current
+		current = 20000
+		for i in range (current):
+			t = Thread(target = so.do_Get())
+			t.daemon = True
+			t.start()
+#-------------------------------Condition Check Looop-------------------------------------------------------------------------------------------------------
+if __name__ == '__main__':                                            
+    global cache, current, hit_cache, urls_d, lines, visited, size, name_requested
+    cache = []
+    hit_cache={}
+    urls_d = {}
+    visited = []
+    lines = []
+    size =[]
+    try:
+	os.mkdir("httpserver_cache")                                                       #Directorty is Created
+    except:
+	pass                                                                              #DO Nothing
+    server = HTTPServer(('', port_number), RequestHandler)                              
+    print 'HTTP server has got started'                                                    #http server is started
+    try:
+        server.serve_forever()                                                             #handle multiple request so that it can server forver 
+    except:
+        server.serve_close()                                                                #CLose the main Server if it the request is incorrect
+
+
+

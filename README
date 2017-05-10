@@ -1,0 +1,68 @@
+
+Description:
+In this project we have deployed and implemented the Content Delivery Network. CDN is mainly used to deliver the packets fast and with higher speed. It is the backbone of the Internet.
+We have implemented one Content Delivery Network
+
+
+High Level Approach:
+
+The complete project was divided into subtasks and finally it was amalgamated together.
+The various sub-tasks are as follows
+1.	DNS SERVER
+-	A DNSSERVER is designed to get IP address of the Query.
+-	To make a connection an UDP socket is made and it is bound on the IP and Port.
+-	The receiving request for the same is done simultaneously so that we can work on multiple request.
+-	Next the dns server unpacks and packs the DNS Header and reads or writes according to the required need of the project.
+-	The next step is finding the nearest replica server by using Geo-Location IP. This is done by calculating the distance between the Server and Client.
+-	The next Step is Constructing a Header and Sending it to the Server
+
+
+2.	HTTP SERVER
+-	A Http Server is implemented using the technique of Multi Threading.
+-	This Http Server responds to the get requests done for the particular page by the client.
+-	Database was also implemented in cache management.
+-	This helped in finding the requested page in cache first and then if it is not found in cache it will request to the origin server or the best replica for the page.
+-	The database insertion is memory restricted to 10mb
+-	Http server is deployed on the replica servers for the execution of the program.
+
+3.	Other scripts written for CDN
+-	For deploying the DNS server code on the DNS Server we need to copy the code on the DNS Server.
+-	For deploying the HTTP server code on the HTTP Server we need to copy the code on all the Replica Servers.
+-	Used threads to tackle simultaneous requests.
+-	After the program completes its execution then there is a Stop script which is run to stop all process and exit the system.
+-	All the process is simultaneously executed on the background on the system.
+
+Challenges Faced:
+-	The Major Challenge was making code work for DNS query and HTTP server.
+-	Next in line and major difficulty was building up an DNS responses and packing the DNS Headers.
+-	Understanding the usage of Disk was also difficult.
+-	The private and the public address of the replica servers was seemed difficult in execution and socket creation
+-	Using Multiple terminals at the same time was challenging
+-	Using ssh for executing commands was difficult too.
+
+
+Testing of Code:
+-	The code was tested under various parameters.
+-	First we need to execute the makefile
+-	Next is we need run the Deploy Script
+-	Further we need to run the Run Script.
+-	Next is run the Dnsserver Script which returns back the IP
+-	Next is to run the httpserver script which will return back the desired page for the client.
+-	After the above processes you need to close the server connection.
+
+Extra Implemtations
+
+Using GEO-LOCATION
+
+- 	Using Geo-location is an active measurement technique to find the nearest replica server
+- 	We Implemented GE-LOcation API and found the location of the Client
+-	We Hardcoded the Location of the Replica Servers in the form of an Array
+-	We performed Calculation for the nearest and the bestest server which can be used
+-	We choose the best server by calculation the minimum distance
+
+Using Cache Memory
+-	We implemented Cache to save the time of getting downloaded
+-	The maximum size of the cahche is 10MB
+-	A code is written which performs the cache implementation 
+-	If it is not present in cache it will Add to the list
+-	the least visited page will be eliminated if the cache memory is full

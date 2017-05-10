@@ -1,0 +1,41 @@
+#!/bin/bash
+
+#Impleemtation of Switches
+while getopts "p:o:n:u:i:" argument
+do
+	case $argument in
+		p) port=$OPTARG;;
+		o) origin=$OPTARG;;
+		n) name=$OPTARG;;
+		u) username=$OPTARG;;
+		i) keyfile=$OPTARG;;
+		?) echo Enter correct arguments;;
+	esac
+done
+
+# replica servers list
+replicas=(ec2-54-210-1-206.compute-1.amazonaws.com               
+ec2-54-67-25-76.us-west-1.compute.amazonaws.com         
+ec2-35-161-203-105.us-west-2.compute.amazonaws.com     
+ec2-52-213-13-179.eu-west-1.compute.amazonaws.com      
+ec2-52-196-161-198.ap-northeast-1.compute.amazonaws.com 
+ec2-54-255-148-115.ap-southeast-1.compute.amazonaws.com 
+ec2-13-54-30-86.ap-southeast-2.compute.amazonaws.com    
+ec2-52-67-177-90.sa-east-1.compute.amazonaws.com        
+ec2-35-156-54-135.eu-central-1.compute.amazonaws.com)   
+
+#Dns Server list                                                 
+dns=cs5700cdnproject.ccs.neu.edu
+
+#visit all replica servers and deploy the Script to  transfer httpserver and the permissions from the local system to each of the servers
+for server in ${replicas[@]};
+do
+	scp -oStrictHostKeyChecking=no -i $keyfile httpserver $username@$server:~/
+	ssh -i $keyfile $username@$server 'chmod 755 httpserver'
+done
+
+
+#Deplyoy the DNS Server Script on the DNS Server
+scp -oStrictHostKeyChecking=no -i $keyfile dnsserver $username@$dns:~/
+ssh -i $keyfile $username@$dns 'chmod 755 dnsserver'
+
